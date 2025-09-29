@@ -1,5 +1,6 @@
 Ref: [RFC 2865](https://datatracker.ietf.org/doc/html/rfc2865)
 
+Network Byte Order Ref: [NBO](https://datatracker.ietf.org/doc/html/draft-newman-network-byte-order-01)
 
 in a simple radius PAP authentication:
 
@@ -31,3 +32,4 @@ in a simple radius PAP authentication:
     bi = MD5(S + c(i-1))   c(i) = pi xor bi
 
     The String will contain c(1)+c(2)+...+c(i) where + denotes concatenation.
+
