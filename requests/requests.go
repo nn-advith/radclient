@@ -29,8 +29,20 @@ type AccessRequest struct {
 	Attributes    []AVP
 }
 
-func NewAccessRequest() AccessRequest {
+func NewAccessRequest(avps map[string]string, secret string) AccessRequest {
 	// compute length
+
+	// for k, v := range avps {
+	// 	//construct temp avp and encode it, append to the attrubutes;
+	// 	// OPTIMISE for memory, this is probably not needed
+	// 	op:= avpencode.AVPEncodMap[uint8(dict.AVP[k])].
+	// 	tempavp := AVP{
+	// 		 Type: uint8(dict.AVP[k]),
+	// 		 Length: uint8(0),
+	// 		 Value: op,
+	// 	}
+	// }
+
 	tempreq := AccessRequest{
 		Code:          uint8(dict.PacketType["AccessRequest"]),
 		Identifier:    utils.GenerateIdentifier(),
