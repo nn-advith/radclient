@@ -14,9 +14,9 @@ func main() {
 	// 	return
 	// }
 
-	avps := map[string]string{
-		"User-Name":      "someuser",
-		"User-Password":  "somepass",
+	avps := map[string]interface{}{
+		"User-Name": "someuser",
+		// "User-Password":  "somepass",
 		"NAS-IP-Address": "192.168.56.10",
 		"NAS-Port":       "1812",
 	}
@@ -26,6 +26,9 @@ func main() {
 
 	newAR := requests.NewAccessRequest(avps, secret)
 	fmt.Printf("%x\n", newAR.Encode())
+
+	// avpencode.EncodeInteger("1812", avpencode.AVPContext{})
+
 	// fmt.Printf("%x\n", newAR.Encode())
 	// conn.Write(newAR.Encode())
 	// fmt.Fprintf(conn, "\x01\x42\x00\x36\x3f\x4e\x6a\x1d\x9f\x8b\x0a\x43\x12\x56\x78\x9a\xbc\xde\xf0\x12\x01\x0a\x73\x6f\x6d\x65\x75\x73\x65\x72\x02\x12\x7b\x2b\x7f\x20\x23\x7a\xf8\xac\x02\x87\xa5\x73\x34\xd5\x79\x7c\x04\x06\xc0\xa8\x38\x00")

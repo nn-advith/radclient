@@ -1,6 +1,9 @@
 package requests
 
 import (
+	"fmt"
+
+	"github.com/nn-advith/radclient/avpencode"
 	"github.com/nn-advith/radclient/dict"
 	"github.com/nn-advith/radclient/utils"
 )
@@ -21,6 +24,14 @@ type AVP struct {
 	Value  []byte
 }
 
+func (a *AVP) CalculateLength() uint8 {
+	return uint8(len(a.Value) + 2)
+}
+
+func (a *AVP) Stream() []uint8 {
+	return append([]uint8{a.Type, a.Length}, a.Value...)
+}
+
 type AccessRequest struct {
 	Code          uint8
 	Identifier    uint8
@@ -29,28 +40,44 @@ type AccessRequest struct {
 	Attributes    []AVP
 }
 
-func NewAccessRequest(avps map[string]string, secret string) AccessRequest {
-	// compute length
-
-	// for k, v := range avps {
-	// 	//construct temp avp and encode it, append to the attrubutes;
-	// 	// OPTIMISE for memory, this is probably not needed
-	// 	op:= avpencode.AVPEncodMap[uint8(dict.AVP[k])].
-	// 	tempavp := AVP{
-	// 		 Type: uint8(dict.AVP[k]),
-	// 		 Length: uint8(0),
-	// 		 Value: op,
-	// 	}
-	// }
-
+func NewAccessRequest(avps map[string]interface{}, secret string) AccessRequest {
+	// compute length at end
+	tempauth := [16]uint8(utils.GenerateAuthenticator())
 	tempreq := AccessRequest{
 		Code:          uint8(dict.PacketType["AccessRequest"]),
 		Identifier:    utils.GenerateIdentifier(),
 		Length:        uint16(0),
-		Authenticator: [16]uint8(utils.GenerateAuthenticator()),
+		Authenticator: tempauth,
 		Attributes:    []AVP{},
 	}
+
+	ctx := avpencode.AVPContext{
+		Secret:        secret,
+		Authenticator: tempauth,
+	}
+	for k, v := range avps {
+		//construct temp avp and encode it, append to the attrubutes;
+		// OPTIMISE for memory, this is probably not needed
+		f := avpencode.AVPEncodeMap[uint8(dict.AVP[k])]
+		tempavp := AVP{
+			Type:   uint8(dict.AVP[k]),
+			Length: uint8(0),
+			Value:  f(v, ctx),
+		}
+		tempavp.Length = tempavp.CalculateLength()
+		tempreq.Attributes = append(tempreq.Attributes, tempavp)
+	}
+
 	return tempreq
+}
+
+func (a *AccessRequest) CalculateLength() uint16 {
+	l := 20
+	for i := range a.Attributes {
+		l += int(a.Attributes[i].CalculateLength())
+	}
+	fmt.Println(l)
+	return uint16(l)
 }
 
 func (a *AccessRequest) Encode() []uint8 {
@@ -62,6 +89,12 @@ func (a *AccessRequest) Encode() []uint8 {
 	// combine and return
 
 	// networek byte order i.e big endian ( virtually all protocols use this; refer investigations)
+	fmt.Printf("%x-%x-%x-%x\n", a.Code, a.Identifier, uint16(a.Length), a.Authenticator[:])
+	//length update
+	a.Length = a.CalculateLength()
 	res := append([]uint8{a.Code, a.Identifier, uint8(a.Length >> 8), uint8(a.Length)}, a.Authenticator[0:len(a.Authenticator)]...)
+	for i := range a.Attributes {
+		res = append(res, a.Attributes[i].Stream()...)
+	}
 	return res
 }
