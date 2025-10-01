@@ -1,9 +1,7 @@
 package requests
 
 import (
-	"fmt"
-
-	"github.com/nn-advith/radclient/avpencode"
+	"github.com/nn-advith/radclient/avpcodec"
 	"github.com/nn-advith/radclient/dict"
 	"github.com/nn-advith/radclient/utils"
 )
@@ -32,6 +30,8 @@ func (a *AVP) Stream() []uint8 {
 	return append([]uint8{a.Type, a.Length}, a.Value...)
 }
 
+// ACCESS-REQUEST
+
 type AccessRequest struct {
 	Code          uint8
 	Identifier    uint8
@@ -51,14 +51,14 @@ func NewAccessRequest(avps map[string]interface{}, secret string) AccessRequest 
 		Attributes:    []AVP{},
 	}
 
-	ctx := avpencode.AVPContext{
+	ctx := avpcodec.AVPContext{
 		Secret:        secret,
 		Authenticator: tempauth,
 	}
 	for k, v := range avps {
 		//construct temp avp and encode it, append to the attrubutes;
 		// OPTIMISE for memory, this is probably not needed
-		f := avpencode.AVPEncodeMap[uint8(dict.AVP[k])]
+		f := avpcodec.AVPEncodeMap[uint8(dict.AVP[k])]
 		tempavp := AVP{
 			Type:   uint8(dict.AVP[k]),
 			Length: uint8(0),
@@ -76,7 +76,6 @@ func (a *AccessRequest) CalculateLength() uint16 {
 	for i := range a.Attributes {
 		l += int(a.Attributes[i].CalculateLength())
 	}
-	fmt.Println(l)
 	return uint16(l)
 }
 
@@ -89,7 +88,7 @@ func (a *AccessRequest) Encode() []uint8 {
 	// combine and return
 
 	// networek byte order i.e big endian ( virtually all protocols use this; refer investigations)
-	fmt.Printf("%x-%x-%x-%x\n", a.Code, a.Identifier, uint16(a.Length), a.Authenticator[:])
+	// fmt.Printf("INFO: %x-%x-%x-%x\n", a.Code, a.Identifier, uint16(a.Length), a.Authenticator[:])
 	//length update
 	a.Length = a.CalculateLength()
 	res := append([]uint8{a.Code, a.Identifier, uint8(a.Length >> 8), uint8(a.Length)}, a.Authenticator[0:len(a.Authenticator)]...)
@@ -97,4 +96,22 @@ func (a *AccessRequest) Encode() []uint8 {
 		res = append(res, a.Attributes[i].Stream()...)
 	}
 	return res
+}
+
+// ACCESS-ACCEPT
+
+type AccessAccept struct {
+	Code          uint8
+	Identifier    uint8
+	Length        uint16
+	Authenticator [16]uint8
+	Attributes    []AVP // howwwww to decode
+}
+
+func (a *AccessAccept) Decode(packet []uint8) {
+	// decode packet and populate the AccessAccept struct
+	a.Code = packet[0]
+	a.Identifier = packet[1]
+	a.Length = uint16(packet[2])>>8 + uint16(packet[3])
+	a.Authenticator = [16]uint8(packet[4:20])
 }

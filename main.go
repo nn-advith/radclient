@@ -27,19 +27,25 @@ func main() {
 	secret := "radius"
 
 	newAR := requests.NewAccessRequest(avps, secret)
-	// fmt.Printf("%x\n", newAR.Encode())
+	encodedpacket := newAR.Encode()
+	fmt.Printf("%x\n", encodedpacket[:])
+	pending := newAR.Identifier
+	fmt.Printf("%x\n", pending)
+	conn.Write(encodedpacket)
 
-	// fmt.Printf("%x\n", newAR.Encode())
-	// avpencode.EncodeInteger("1812", avpencode.AVPContext{})
+	// add feature to track pending requests; in a different routine i guess
 
-	// fmt.Fprintf(conn, "\x01\x42\x00\x36\x3f\x4e\x6a\x1d\x9f\x8b\x0a\x43\x12\x56\x78\x9a\xbc\xde\xf0\x12\x01\x0a\x73\x6f\x6d\x65\x75\x73\x65\x72\x02\x12\x7b\x2b\x7f\x20\x23\x7a\xf8\xac\x02\x87\xa5\x73\x34\xd5\x79\x7c\x04\x06\xc0\xa8\x38\x00")
-	conn.Write(newAR.Encode())
+	// add decoding logic
+	AA := requests.AccessAccept{}
+
 	n, err := bufio.NewReader(conn).Read(p)
 	if err == nil {
-		fmt.Printf("raw: %v\n", p[:n])
 		fmt.Printf("string: %x\n", p[:n]) // manually decode
+		// decode
+		AA.Decode(p[:n])
+		fmt.Println(AA)
 	} else {
-		fmt.Printf("Some error %v\n", err)
+		fmt.Printf("error %v\n", err)
 	}
 	conn.Close()
 

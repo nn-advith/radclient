@@ -33,3 +33,15 @@ in a simple radius PAP authentication:
 
     The String will contain c(1)+c(2)+...+c(i) where + denotes concatenation.
 
+
+2. AccessAccept:
+
+    1. Code             - 1 byte - 02
+    2. Identifier       - 1 byte - Echo
+    3, Length           - 2 byte 
+    4. Authenticator    - 16 byte - replace with \x00... during verification
+    5. AVPs:
+
+        refer 1.5; decode by using Type and Length; sequential parsing.
+
+    ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) [from rfc]

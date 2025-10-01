@@ -1,4 +1,4 @@
-package avpencode
+package avpcodec
 
 import (
 	"crypto/md5"
@@ -90,3 +90,5 @@ func EncodePassword(value AVPValue, ctx AVPContext) []uint8 {
 	return opstr
 
 }
+
+// add avp decode map
