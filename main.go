@@ -29,13 +29,15 @@ func main() {
 	newAR := requests.NewAccessRequest(avps, secret)
 	encodedpacket := newAR.Encode()
 	fmt.Printf("%x\n", encodedpacket[:])
-	pending := newAR.Identifier
-	fmt.Printf("%x\n", pending)
-	conn.Write(encodedpacket)
 
 	// add feature to track pending requests; in a different routine i guess
+	pending := newAR.Identifier
+	fmt.Printf("%x\n", pending)
 
-	// add decoding logic
+	conn.Write(encodedpacket)
+
+	// add decoding logic; dynamicaaly depending on which type of response is received.
+	// first check code and then determine whcih struct to decode into
 	AA := requests.AccessAccept{}
 
 	n, err := bufio.NewReader(conn).Read(p)
@@ -43,7 +45,16 @@ func main() {
 		fmt.Printf("string: %x\n", p[:n]) // manually decode
 		// decode
 		AA.Decode(p[:n])
-		fmt.Println(AA)
+		if AA.Identifier == pending {
+			fmt.Println("Received response for pending request")
+		}
+		valid := requests.ValidateAccessAccept(p[:n], newAR.Authenticator, secret)
+		if valid {
+			fmt.Println("valid response")
+		} else {
+			fmt.Println("not a valid response; response authenticator check failed")
+		}
+
 	} else {
 		fmt.Printf("error %v\n", err)
 	}

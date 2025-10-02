@@ -1,6 +1,10 @@
 package requests
 
 import (
+	"crypto/md5"
+	"fmt"
+	"log"
+
 	"github.com/nn-advith/radclient/avpcodec"
 	"github.com/nn-advith/radclient/dict"
 	"github.com/nn-advith/radclient/utils"
@@ -114,4 +118,23 @@ func (a *AccessAccept) Decode(packet []uint8) {
 	a.Identifier = packet[1]
 	a.Length = uint16(packet[2])>>8 + uint16(packet[3])
 	a.Authenticator = [16]uint8(packet[4:20])
+
+}
+
+func ValidateAccessAccept(packet []uint8, requestauth [16]uint8, secret string) bool {
+	if uint8(packet[0]) != 2 {
+		// not access accept
+		log.Fatal("not access accept")
+		return false
+	}
+	temp := make([]uint8, len(packet))
+	copy(temp, packet)
+
+	respauth := make([]uint8, 16)
+	copy(respauth, temp[4:20])
+	copy(temp[4:20], requestauth[:])
+	temp = append(temp, []uint8(secret)...)
+	md5op := md5.Sum(temp)
+	fmt.Printf("TEMP: %x\nRESPAUTH: %x\nMD5: %x\n", temp[:], respauth[:], md5op)
+	return md5op == [16]byte(respauth)
 }
