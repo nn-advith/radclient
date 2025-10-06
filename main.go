@@ -44,17 +44,7 @@ func main() {
 	// IMPORTANT: for test only;
 	secret := "radius"
 
-	// newAR := requests.NewAccessRequest(avps, secret)
-	// encodedpacket := newAR.Encode()
-	// fmt.Printf("%x\n", encodedpacket[:])
-
-	// add feature to track pending requests; in a different routine i guess
-	// pending := newAR.Identifier
-	// fmt.Printf("%x\n", pending)
-
-	// conn.Write(encodedpacket)
-
-	n := 10
+	n := 1
 
 	go func() {
 		p := make([]byte, 2048)
@@ -71,6 +61,7 @@ func main() {
 					} else {
 						fmt.Printf("READ: Response Authenticator check \033[031mFAILED\033[0m\n")
 					}
+					pendingReqs.Delete(key)
 				} else {
 					// porbably not some request which we sent; idk how we got; ignore
 					fmt.Println("dud")
@@ -89,25 +80,5 @@ func main() {
 	time.Sleep(5 * time.Second)
 	// add decoding logic; dynamicaaly depending on which type of response is received.
 	// first check code and then determine whcih struct to decode into
-	// AA := requests.AccessAccept{}
-
-	// m, err := bufio.NewReader(conn).Read(p)
-	// if err == nil {
-	// 	fmt.Printf("string: %x\n", p[:n]) // manually decode
-	// 	// decode
-	// 	AA.Decode(p[:m])
-	// 	// if AA.Identifier == pending {
-	// 	// 	fmt.Println("Received response for pending request")
-	// 	// }
-	// 	// valid := requests.ValidateAccessAccept(p[:n], newAR.Authenticator, secret)
-	// 	// if valid {
-	// 	// 	fmt.Println("valid response")
-	// 	// } else {
-	// 	// 	fmt.Println("not a valid response; response authenticator check failed")
-	// 	// }
-
-	// } else {
-	// 	fmt.Printf("error %v\n", err)
-	// }
 
 }
