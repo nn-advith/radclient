@@ -142,3 +142,41 @@ func ValidateAccessAccept(packet []uint8, requestauth [16]uint8, secret string) 
 	// fmt.Printf("TEMP: %x\nRESPAUTH: %x\nMD5: %x\n", temp[:], respauth[:], md5op)
 	return md5op == [16]byte(respauth)
 }
+
+// ACCESS-REJECT
+
+type AccessReject struct {
+	Code          uint8
+	Identifier    uint8
+	Length        uint16
+	Authenticator [16]uint8
+	Attributes    []AVP // if needed
+}
+
+func (a *AccessReject) Decode(packet []uint8) {
+	a.Code = packet[0]
+	a.Identifier = packet[1]
+	a.Length = uint16(packet[2])>>8 + uint16(packet[3])
+	a.Authenticator = [16]uint8(packet[4:20])
+
+	fmt.Printf("attributes from avp: %x\n", packet[20:])
+	// do opinionated parsing here; ignore AVPs you dont care about
+}
+
+func ValidateAccessReject(packet []uint8, requestauth [16]uint8, secret string) bool {
+	if uint8(packet[0]) != 3 {
+		// not access accept
+		log.Fatal("not access reject")
+		return false
+	}
+	temp := make([]uint8, len(packet))
+	copy(temp, packet)
+
+	respauth := make([]uint8, 16)
+	copy(respauth, temp[4:20])
+	copy(temp[4:20], requestauth[:])
+	temp = append(temp, []uint8(secret)...)
+	md5op := md5.Sum(temp)
+	// fmt.Printf("TEMP: %x\nRESPAUTH: %x\nMD5: %x\n", temp[:], respauth[:], md5op)
+	return md5op == [16]byte(respauth)
+}

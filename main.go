@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -36,7 +37,7 @@ func main() {
 
 	avps := map[string]interface{}{
 		"User-Name":      "someuser",
-		"User-Password":  "somepass",
+		"User-Password":  "w",
 		"NAS-IP-Address": "192.168.56.10",
 		"NAS-Port":       "1812",
 	}
@@ -51,21 +52,46 @@ func main() {
 		for {
 			n, err := bufio.NewReader(conn).Read(p)
 			if err == nil {
-				AA := requests.AccessAccept{}
-				AA.Decode(p[:n])
-				key := AA.Identifier
-				if v, ok := pendingReqs.Load(key); ok {
-					valid := requests.ValidateAccessAccept(p[:n], v.([16]byte), secret)
-					if valid {
-						fmt.Printf("READ: Response Authenticator check \033[032mPASSED\033[0m\n")
+				fmt.Printf("%x\n", p[0])
+				switch p[0] {
+				case 2:
+					fmt.Printf("\033[032mAccess-Accept\033[0m\n")
+					AA := requests.AccessAccept{}
+					AA.Decode(p[:n])
+					key := AA.Identifier
+					if v, ok := pendingReqs.Load(key); ok {
+						valid := requests.ValidateAccessAccept(p[:n], v.([16]byte), secret)
+						if valid {
+							fmt.Printf("READ: Response Authenticator check \033[032mPASSED\033[0m\n")
+						} else {
+							fmt.Printf("READ: Response Authenticator check \033[031mFAILED\033[0m\n")
+						}
+						pendingReqs.Delete(key)
 					} else {
-						fmt.Printf("READ: Response Authenticator check \033[031mFAILED\033[0m\n")
+						// porbably not some request which we sent; idk how we got; ignore
+						fmt.Println("dud")
 					}
-					pendingReqs.Delete(key)
-				} else {
-					// porbably not some request which we sent; idk how we got; ignore
-					fmt.Println("dud")
+				case 3:
+					fmt.Printf("\033[031mAccess-Reject\033[0m\n")
+					AA := requests.AccessReject{}
+					AA.Decode(p[:n])
+					key := AA.Identifier
+					if v, ok := pendingReqs.Load(key); ok {
+						valid := requests.ValidateAccessReject(p[:n], v.([16]byte), secret)
+						if valid {
+							fmt.Printf("READ: Response Authenticator check \033[032mPASSED\033[0m\n")
+						} else {
+							fmt.Printf("READ: Response Authenticator check \033[031mFAILED\033[0m\n")
+						}
+						pendingReqs.Delete(key)
+					} else {
+						// porbably not some request which we sent; idk how we got; ignore
+						fmt.Println("dud")
+					}
+				default:
+					log.Println("Unknown message code")
 				}
+
 			} else {
 				fmt.Printf("error: %v\n", err)
 			}
@@ -77,7 +103,7 @@ func main() {
 		go SendRequest(id, conn, avps, secret)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 	// add decoding logic; dynamicaaly depending on which type of response is received.
 	// first check code and then determine whcih struct to decode into
 
