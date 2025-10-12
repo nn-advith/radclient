@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/nn-advith/radclient/metrics"
 	"github.com/nn-advith/radclient/requests"
 )
 
@@ -16,13 +18,14 @@ import (
 // one reader routine to read responses and possibly track
 // track using sync.Map
 
-var pendingReqs sync.Map
+var pendingReqs sync.Map // merge this into metrics tracker iguess; add a flag to save metrics if needed
 
-func SendRequest(id uint8, conn net.Conn, avps map[string]interface{}, secret string) {
+func SendRequest(id uint8, conn net.Conn, avps map[string]interface{}, secret string, mt *metrics.Metrics) {
 	newAR := requests.NewAccessRequest(id, avps, secret)
 	encodedpacket := newAR.Encode()
 	key := newAR.Identifier
 	pendingReqs.Store(key, newAR.Authenticator)
+	mt.Start(newAR.Identifier)
 	conn.Write(encodedpacket)
 }
 
@@ -37,22 +40,33 @@ func main() {
 
 	avps := map[string]interface{}{
 		"User-Name":      "someuser",
-		"User-Password":  "w",
+		"User-Password":  "somepass",
 		"NAS-IP-Address": "192.168.56.10",
 		"NAS-Port":       "1812",
 	}
 
 	// IMPORTANT: for test only;
 	secret := "radius"
+	n := 50
+	printMetrics := true // get from config
 
-	n := 1
+	closeChannel := make(chan struct{})
+
+	// metics starts
+	var mtracker *metrics.Metrics
+	if printMetrics {
+		mtracker = metrics.NewMetrics()
+		go mtracker.StartCollection()
+	}
 
 	go func() {
 		p := make([]byte, 2048)
 		for {
 			n, err := bufio.NewReader(conn).Read(p)
 			if err == nil {
-				fmt.Printf("%x\n", p[0])
+				if printMetrics {
+					mtracker.End(p[1])
+				}
 				switch p[0] {
 				case 2:
 					fmt.Printf("\033[032mAccess-Accept\033[0m\n")
@@ -95,15 +109,35 @@ func main() {
 			} else {
 				fmt.Printf("error: %v\n", err)
 			}
+
+		}
+	}()
+
+	// closer
+	go func() {
+		for {
+			time.Sleep(500 * time.Millisecond)
+
+			empty := true
+			pendingReqs.Range(func(key, value any) bool {
+				// if it ranges then set empty to false
+				empty = false
+				return false
+			})
+			if empty && mtracker.IsEmpty() {
+				closeChannel <- struct{}{}
+			}
 		}
 	}()
 
 	for i := range n {
 		id := uint8(i)
-		go SendRequest(id, conn, avps, secret)
+		go SendRequest(id, conn, avps, secret, mtracker)
 	}
 
-	time.Sleep(3 * time.Second)
+	<-closeChannel
+	os.Exit(0)
+
 	// add decoding logic; dynamicaaly depending on which type of response is received.
 	// first check code and then determine whcih struct to decode into
 
