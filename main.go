@@ -116,7 +116,7 @@ func main() {
 	// closer
 	go func() {
 		for {
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 
 			empty := true
 			pendingReqs.Range(func(key, value any) bool {
@@ -136,6 +136,7 @@ func main() {
 	}
 
 	<-closeChannel
+	mtracker.GetSummary()
 	os.Exit(0)
 
 	// add decoding logic; dynamicaaly depending on which type of response is received.

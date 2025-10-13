@@ -9,28 +9,34 @@ import (
 // metrics routines
 // init: for each request, track latency and give overall successs rate
 
-type TimeStruct struct {
+type MetricStruct struct {
 	Identifier uint8
 	StartTime  time.Time
 	EndTIme    time.Time
 }
 
 type Metrics struct {
-	lock    sync.Mutex
-	timemap map[uint8]*TimeStruct
-	eChan   chan *TimeStruct
+	lock          sync.Mutex
+	timemap       map[uint8]*MetricStruct
+	eChan         chan *MetricStruct
+	avglatency    time.Duration
+	requestCount  int64
+	responseCount int64
 }
 
 func NewMetrics() *Metrics {
 	return &Metrics{
-		timemap: make(map[uint8]*TimeStruct),
-		eChan:   make(chan *TimeStruct, 50),
+		timemap:       make(map[uint8]*MetricStruct),
+		eChan:         make(chan *MetricStruct, 1000),
+		requestCount:  0,
+		responseCount: 0,
 	}
 }
 
 func (m *Metrics) Start(identifier uint8) {
 	m.lock.Lock()
-	m.timemap[identifier] = &TimeStruct{Identifier: identifier, StartTime: time.Now()}
+	m.requestCount += 1
+	m.timemap[identifier] = &MetricStruct{Identifier: identifier, StartTime: time.Now()}
 	m.lock.Unlock()
 }
 
@@ -48,13 +54,30 @@ func (m *Metrics) End(identifier uint8) {
 }
 
 func (m *Metrics) IsEmpty() bool {
-	return len(m.eChan) == 0
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return len(m.timemap) == 0
+
 }
 
 // consumer
 func (m *Metrics) StartCollection() {
-	for timestruct := range m.eChan {
-		latency := timestruct.EndTIme.Sub(timestruct.StartTime)
-		fmt.Printf("[METRICS]: ID: %d - Latency: %d\n", timestruct.Identifier, latency.Milliseconds())
+	var tlatency time.Duration
+	var rescount int64
+	for mstruct := range m.eChan {
+		latency := mstruct.EndTIme.Sub(mstruct.StartTime)
+		rescount++
+		tlatency += latency
+		alatency := tlatency / time.Duration(rescount)
+		m.avglatency = alatency
+		m.responseCount = rescount // modify this so that only proper responses are counted
+		fmt.Printf("[METRICS]: ID: %d - Latency: %d | Avg Latency: %d\n", mstruct.Identifier, latency.Milliseconds(), alatency.Milliseconds())
 	}
+
+}
+
+func (m *Metrics) GetSummary() {
+	// average latency
+	// average error rate
+	fmt.Printf("\n===[METRICS SUMMARY]===\nRequest Count\t\t: %d\nResponse Count\t\t: %d\nAvg Latency\t\t: %dms\n", m.requestCount, m.responseCount, m.avglatency.Milliseconds())
 }
